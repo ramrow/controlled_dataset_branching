@@ -9,6 +9,7 @@
 #SBATCH --error=%x_err
 
 source /mnt/lustre/rpi/pxu10/agent/bin/activate
-source /mnt/lustre/rpi/pxu10/dataset/slurm/aws_env.sh
+source /mnt/home/DDN_Copy/rpi/pxu10/dataset_branching/slurm/aws_env.sh
 cd /mnt/home/DDN_Copy/rpi/pxu10/dataset_branching
 python scripts/map_cases_to_tutorials.py --inputs /mnt/home/DDN_Copy/rpi/pxu10/dataset_branching/foamgpt_train.jsonl /mnt/home/DDN_Copy/rpi/pxu10/dataset_branching/foamgpt_test.jsonl --tutorials-root /mnt/home/pxu10/OpenFOAM/OpenFOAM-10/tutorials --out case_tutorial_map_chunk_3.json --use-bedrock --chunk-index 3 --chunk-count 4
+
