@@ -1,72 +1,84 @@
 ﻿# dataset_branching
 
-Velocity-first branching augmentation with immediate-save behavior.
+Branching augmentation pipeline that reuses matched case files and applies velocity perturbations.
 
-## Scope
+## What this pipeline does
 
-- Uses both `foamgpt_train.jsonl` and `foamgpt_test.jsonl` for case-to-tutorial mapping.
-- Exports matched prompt groups into unique numeric folders with:
-  - `user_prompt.txt`
-  - `system_prompt.txt`
-  - `0/`, `system/`, `constant/`
-  - excludes `constant/polyMesh/**`
+- Uses pre-matched case folders from `matched_hf_raw` (or `matched_complete`) as the reusable base.
+- Always skips initial file generation by passing `--reuse_generated_dir` to Foam-Agent.
+- For each matched prompt-group, creates velocity variants:
+  - +10%
+  - +20%
+  - +30%
+- Patches `0/U` directly for each variant.
+- Runs Foam-Agent (runner + reviewer + rewrite still active).
+- If successful, appends dataset rows immediately (no end-of-run wait).
 
-## Scripts
+## Output row fields
 
-- `scripts/map_cases_to_tutorials.py` — map case names to OpenFOAM tutorials (heuristic + optional Bedrock Sonnet fallback)
-- `scripts/merge_case_maps.py` — merge chunked case-map outputs
-- `scripts/export_matched_prompt_cases.py` — export matched prompt groups to unique-id folders
-- `scripts/velocity_branching_pipeline.py` — velocity +10/+20/+30 pipeline with immediate save
+Each accepted row includes at least:
+- `system_prompt` (rebuilt per file using base system prompt with updated `<file_name>` and `<folder_name>`)
+- `user_prompt` (velocity-updated)
+- `user_requirement` (velocity-updated)
+- `file_content`
+- `case_name`, `folder_name`, `file_name`, `variant_id`, `velocity_scale_factor`, `source_prompt_id`
 
-## One-shot mapping (both train + test)
+## Required folders/files
 
-`python scripts/map_cases_to_tutorials.py --inputs foamgpt_train.jsonl foamgpt_test.jsonl --tutorials-root /mnt/home/pxu10/OpenFOAM/OpenFOAM-10/tutorials --out case_tutorial_map.json --use-bedrock`
+At repo root (`/mnt/lustre/rpi/pxu10/branching` on cluster):
+- `matched_hf_raw/`
+- `Foam-Agent/`
+- `velocity_branching_pipeline.py`
+- `slurm/aws_env.sh`
 
-## 4-batch mapping with SLURM
+## AWS env file
 
-Submit all 4 chunks:
+`slurm/aws_env.sh` should define:
 
-`bash /mnt/home/DDN_Copy/rpi/pxu10/dataset_branching/slurm/submit_map_chunks.sh`
+```bash
+export AWS_ACCESS_KEY_ID="..."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_SESSION_TOKEN="..."
+```
 
-Each chunk writes:
-- `case_tutorial_map_chunk_0.json`
-- `case_tutorial_map_chunk_1.json`
-- `case_tutorial_map_chunk_2.json`
-- `case_tutorial_map_chunk_3.json`
+## Run locally (single process)
 
-Merge chunk outputs:
+```bash
+python velocity_branching_pipeline.py --matched-root /mnt/lustre/rpi/pxu10/branching/matched_hf_raw --foam-agent-dir /mnt/lustre/rpi/pxu10/branching/Foam-Agent --work-dir /mnt/lustre/rpi/pxu10/branching/work --out-jsonl /mnt/lustre/rpi/pxu10/branching/output/accepted_velocity.jsonl --fail-jsonl /mnt/lustre/rpi/pxu10/branching/output/failed_velocity.jsonl --timeout-sec 2600 --chunk-index 0 --chunk-count 1
+```
 
-`bash /mnt/home/DDN_Copy/rpi/pxu10/dataset_branching/slurm/merge_map_chunks.sh`
+## 15-batch SLURM parallel run
 
-Final merged file:
-- `case_tutorial_map.json`
+Generated files:
+- `slurm/branch_chunk_0.slurm` ... `slurm/branch_chunk_14.slurm`
+- `slurm/submit_branch_15.sh`
 
-## Export matched prompt groups into unique-id folders
+Submit all 15:
 
-`python scripts/export_matched_prompt_cases.py --jsonl foamgpt_train.jsonl --case-map case_tutorial_map.json --out-dir matched_data --digits 4`
+```bash
+cd /mnt/lustre/rpi/pxu10/branching/slurm
+bash submit_branch_15.sh
+```
 
-## Run velocity branching pipeline (+10%, +20%, +30%)
+Each chunk runs with:
+- `--chunk-index <0..14>`
+- `--chunk-count 15`
 
-`python scripts/velocity_branching_pipeline.py --input foamgpt_train.jsonl --case-map case_tutorial_map.json --foam-agent-dir /mnt/home/DDN_Copy/rpi/pxu10/dataset/Foam-Agent --work-dir work --out-jsonl output/accepted_velocity.jsonl --fail-jsonl output/failed_velocity.jsonl --timeout-sec 2600`
+## Mapping/export utilities (optional)
 
-## Immediate-save guarantee
-
-Successful variants are appended immediately to `output/accepted_velocity.jsonl` (flush + fsync on each write).
-
-Failed variants are appended immediately to `output/failed_velocity.jsonl`.
-
-## Root-level entrypoints (outside scripts)
-
-The same pipeline files are now available at repo root so you can run without `scripts/` prefixes:
-
+Root-level utilities available:
 - `map_cases_to_tutorials.py`
 - `merge_case_maps.py`
 - `export_matched_prompt_cases.py`
-- `velocity_branching_pipeline.py`
 - `rebuild_matched_hf_raw.py`
 
-Examples:
+If mapping with Bedrock Sonnet is needed:
 
-`python map_cases_to_tutorials.py --inputs foamgpt_train.jsonl foamgpt_test.jsonl --tutorials-root /mnt/home/pxu10/OpenFOAM/OpenFOAM-10/tutorials --out case_tutorial_map.json --use-bedrock`
+```bash
+python map_cases_to_tutorials.py --inputs foamgpt_train.jsonl foamgpt_test.jsonl --tutorials-root /mnt/home/pxu10/OpenFOAM/OpenFOAM-10/tutorials --out case_tutorial_map.json --use-bedrock
+```
 
-`python velocity_branching_pipeline.py --input foamgpt_train.jsonl --case-map case_tutorial_map.json --foam-agent-dir /mnt/lustre/rpi/pxu10/branching/Foam-Agent --work-dir work --out-jsonl output/accepted_velocity.jsonl --fail-jsonl output/failed_velocity.jsonl --timeout-sec 2600`
+## Immediate-save guarantee
+
+- Success rows are appended immediately to `output/accepted_velocity.jsonl`.
+- Failures are appended immediately to `output/failed_velocity.jsonl`.

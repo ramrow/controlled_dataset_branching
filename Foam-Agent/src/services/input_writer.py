@@ -1,4 +1,4 @@
-import os
+﻿import os
 import re
 from typing import Dict, List, Any, Optional
 import shutil
@@ -103,7 +103,7 @@ def initial_write(
         "- Cross-check field names between different files to avoid mismatches.\n"
         "- Ensure units and dimensions are correct** for all physical variables.\n"
         f"- Ensure case solver settings are consistent with the user's requirements. Available solvers are: {{case_solver}}.\n"
-        "Provide only the code—no explanations, comments, or additional text."
+        "Provide only the codeâ€”no explanations, comments, or additional text."
     )
 
     def _build_prompts(file_name: str, folder_name: str, written_files_ctx: List[FoamfilePydantic]) -> tuple[str, str]:
@@ -157,8 +157,8 @@ def initial_write(
         file_path = os.path.join(case_dir, folder_name, file_name)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        # Optional reuse: if a pre-generated file exists, copy it into output and
-        # treat it as a written file (also included in context for subsequent generations).
+        # Reuse-only mode for branching pipeline: when reuse_generated_dir is provided,
+        # do not generate missing files; fail fast instead.
         if reuse_generated_dir:
             reuse_src = os.path.join(reuse_generated_dir, folder_name, file_name)
             if os.path.exists(reuse_src):
@@ -166,6 +166,9 @@ def initial_write(
                 shutil.copy2(reuse_src, file_path)
                 reused_content = read_file(reuse_src)
                 return FoamfilePydantic(file_name=file_name, folder_name=folder_name, content=reused_content)
+            raise RuntimeError(
+                f"Reuse-only mode: required file not found in reuse_generated_dir: {folder_name}/{file_name}"
+            )
 
         code_user_prompt, code_system_prompt = _build_prompts(file_name, folder_name, written_files_ctx)
 
@@ -310,7 +313,7 @@ def build_allrun(
     command_system_prompt = (
         "You are an expert in OpenFOAM. The user will provide a list of available commands. "
         "Your task is to generate only the necessary OpenFOAM commands required to create an Allrun script for the given user case, based on the provided directory structure. "
-        "Return only the list of commands—no explanations, comments, or additional text."
+        "Return only the list of commandsâ€”no explanations, comments, or additional text."
     )
 
     if mesh_type == "custom_mesh":
@@ -321,7 +324,7 @@ def build_allrun(
         f"Case directory structure: {dir_structure}\n"
         f"User case information: {case_info}\n"
         f"Reference Allrun scripts from similar cases: {allrun_reference}\n"
-        "Generate only the required OpenFOAM command list—no extra text."
+        "Generate only the required OpenFOAM command listâ€”no extra text."
     )
 
     if mesh_type == "custom_mesh":
@@ -518,3 +521,4 @@ def rewrite_files(
         "foamfiles": updated_foamfiles,
         "error_logs": [],
     }
+
