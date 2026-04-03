@@ -54,3 +54,19 @@ Final merged file:
 Successful variants are appended immediately to `output/accepted_velocity.jsonl` (flush + fsync on each write).
 
 Failed variants are appended immediately to `output/failed_velocity.jsonl`.
+
+## Root-level entrypoints (outside scripts)
+
+The same pipeline files are now available at repo root so you can run without `scripts/` prefixes:
+
+- `map_cases_to_tutorials.py`
+- `merge_case_maps.py`
+- `export_matched_prompt_cases.py`
+- `velocity_branching_pipeline.py`
+- `rebuild_matched_hf_raw.py`
+
+Examples:
+
+`python map_cases_to_tutorials.py --inputs foamgpt_train.jsonl foamgpt_test.jsonl --tutorials-root /mnt/home/pxu10/OpenFOAM/OpenFOAM-10/tutorials --out case_tutorial_map.json --use-bedrock`
+
+`python velocity_branching_pipeline.py --input foamgpt_train.jsonl --case-map case_tutorial_map.json --foam-agent-dir /mnt/lustre/rpi/pxu10/branching/Foam-Agent --work-dir work --out-jsonl output/accepted_velocity.jsonl --fail-jsonl output/failed_velocity.jsonl --timeout-sec 2600`
