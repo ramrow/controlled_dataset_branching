@@ -11,5 +11,6 @@
 source /mnt/lustre/rpi/pxu10/agent/bin/activate
 source /mnt/lustre/rpi/pxu10/branching/slurm/aws_env.sh
 cd /mnt/lustre/rpi/pxu10/branching
-python velocity_branching_pipeline.py --matched-root /mnt/lustre/rpi/pxu10/branching/matched_hf_raw --work-dir /mnt/lustre/rpi/pxu10/branching/work --out-jsonl /mnt/lustre/rpi/pxu10/branching/output/accepted_velocity.jsonl --fail-jsonl /mnt/lustre/rpi/pxu10/branching/output/failed_velocity.jsonl --timeout-sec 2600 --chunk-index 0 --chunk-count 15
+python velocity_branching_pipeline.py --matched-root /mnt/lustre/rpi/pxu10/branching/matched_complete --work-dir /mnt/lustre/rpi/pxu10/branching/work --out-jsonl /mnt/lustre/rpi/pxu10/branching/output/accepted_velocity.jsonl --fail-jsonl /mnt/lustre/rpi/pxu10/branching/output/failed_velocity.jsonl --timeout-sec 2600 --chunk-index 0 --chunk-count 15
+
 
