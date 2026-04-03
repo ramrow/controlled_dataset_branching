@@ -2,3 +2,5 @@ matched_complete/
 matched_hf_raw/
 Foam-Agent/database
 slurm/aws_env.sh
+/mnt/lustre/rpi/pxu10/branching/output
+/mnt/lustre/rpi/pxu10/branching/work
